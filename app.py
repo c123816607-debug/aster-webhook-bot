@@ -46,6 +46,11 @@ def place_order(symbol, side, quantity):
         "signature": signature
     }
     headers = {"X-API-KEY": API_KEY}
-    response = requests.post(f"{BASE_URL}/fapi/v3/order", params=payload, headers=headers)
+    response = requests.post(f"{BASE_URL}/fapi/v3/order", json=payload, headers=headers)
+    print("下單參數：", symbol, side, quantity)
+    print("API 回應：", response.text)
+
     return response.text, response.status_code
-  
+except Exception as e:
+    print("❌ 下單錯誤：", str(e))
+    return str(e), 500
