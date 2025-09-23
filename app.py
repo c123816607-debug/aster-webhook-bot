@@ -1,62 +1,62 @@
 from flask import Flask, request
-import os
-import hmac
-import hashlib
-import traceback
-import requests
+import time, hmac, hashlib, requests
+from eth_account import Account
+from web3 import Web3
 
 app = Flask(__name__)
 
-API_KEY = os.getenv("ASTER_API_KEY")
-API_SECRET = os.getenv("ASTER_API_SECRET")
+USER = os.getenv("ASTER_USER")         # 主帳戶地址
+SIGNER = os.getenv("ASTER_SIGNER")     # API 錢包地址
+PRIVATE_KEY = os.getenv("ASTER_PK")    # signer 的私鑰
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
     try:
-        # ✅ 防呆：檢查 API 金鑰是否存在
-        if not API_KEY or not API_SECRET:
-            print("❌ API 金鑰未設定")
-            return {"error": "API key/secret not set"}, 500
-
-        # ✅ 正確解析 JSON
         data = request.get_json(force=True)
-        print("📩 JSON 資料：", data)
-
-        # ✅ 取值並處理
         symbol = data.get("symbol", "")
         side = data.get("side", "").upper()
-        quantity = float(data.get("quantity", 0))
-        strategy = data.get("strategy", "Unknown")
+        quantity = str(data.get("quantity", ""))
+        strategy = data.get("strategy", "FundingArb")
 
-        print(f"📦 下單參數：{side} {symbol} x {quantity} ({strategy})")
+        nonce = str(int(time.time() * 1_000_000))  # 微秒
+        timestamp = str(int(time.time() * 1000))   # 毫秒
 
-        # ✅ 生成簽名
-        query = f"symbol={symbol}&side={side}&quantity={quantity}"
-        signature = hmac.new(API_SECRET.encode(), query.encode(), hashlib.sha256).hexdigest()
-
-        # ✅ 發送真實下單請求
-        headers = {
-            "X-API-KEY": API_KEY,
-            "X-SIGNATURE": signature,
-            "Content-Type": "application/json"
-        }
-
-        payload = {
+        # 所有參數轉成字串並排序
+        params = {
             "symbol": symbol,
             "side": side,
             "quantity": quantity,
-            "strategy": strategy
+            "strategy": strategy,
+            "user": USER,
+            "signer": SIGNER,
+            "nonce": nonce
+        }
+        sorted_items = sorted(params.items())
+        encoded = Web3.solidityKeccak(
+            ['string'] * len(sorted_items),
+            [str(v) for k, v in sorted_items]
+        )
+
+        # 用 signer 私鑰簽名
+        acct = Account.from_key(PRIVATE_KEY)
+        signature = acct.signHash(encoded).signature.hex()
+
+        # 發送請求
+        payload = {
+            **params,
+            "signature": signature,
+            "timestamp": timestamp,
+            "recvWindow": "5000"
         }
 
-        response = requests.post("https://api.aster.trade/order", headers=headers, json=payload)
-        print("✅ API 回應：", response.status_code, response.text)
+        headers = {
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
 
+        response = requests.post("https://fapi.asterdex.com/fapi/v3/order", data=payload, headers=headers)
+        print("✅ API 回應：", response.status_code, response.text)
         return {"status": "ok", "response": response.json()}, 200
 
     except Exception as e:
         print("❌ webhook 錯誤：", str(e))
-        print("❌ 錯誤追蹤：", traceback.format_exc())
-        return {"error": "Invalid JSON or execution error"}, 400
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+        return {"error": "execution error"}, 400
