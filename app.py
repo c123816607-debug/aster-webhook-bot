@@ -30,17 +30,14 @@ def webhook():
         strategy = data.get('strategy', 'default')
         position_size = data.get('position_size', 0)
 
-        # 防錯：檢查必要欄位
         if not symbol or not side or quantity is None:
             print("❌ 缺少必要欄位")
             return {"error": "Missing symbol/side/quantity"}, 400
 
-        # 防錯：檢查 API 金鑰
         if not API_KEY or not API_SECRET:
             print("❌ API 金鑰未設定")
             return {"error": "API key/secret not set"}, 500
 
-        # 防錯：檢查 quantity 格式
         try:
             quantity = float(quantity)
         except (TypeError, ValueError):
@@ -116,3 +113,7 @@ def place_order(symbol, side, quantity):
         print("❌ 下單錯誤：", str(e))
         print("❌ 錯誤追蹤：", traceback.format_exc())
         return str(e), 500
+
+# ✅ Flask 啟動入口（Railway 必須要有）
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
