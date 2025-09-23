@@ -35,23 +35,23 @@ def set_leverage(symbol, leverage):
 
 def place_order(symbol, side, quantity):
     try:
-    timestamp = int(time.time() * 1000)
-    query = f"symbol={symbol}&side={side}&type=MARKET&quantity={quantity}&timestamp={timestamp}"
-    signature = hmac.new(API_SECRET.encode(), query.encode(), hashlib.sha256).hexdigest()
-    payload = {
-        "symbol": symbol,
-        "side": side,
-        "type": "MARKET",
-        "quantity": quantity,
-        "timestamp": timestamp,
-        "signature": signature
-    }
-    headers = {"X-API-KEY": API_KEY}
-    response = requests.post(f"{BASE_URL}/fapi/v3/order", json=payload, headers=headers)
-    print("下單參數：", symbol, side, quantity)
-    print("API 回應：", response.text)
+        timestamp = int(time.time() * 1000)
+        query = f"symbol={symbol}&side={side}&type=MARKET&quantity={quantity}&timestamp={timestamp}"
+        signature = hmac.new(API_SECRET.encode(), query.encode(), hashlib.sha256).hexdigest()
+        payload = {
+            "symbol": symbol,
+            "side": side,
+            "type": "MARKET",
+            "quantity": quantity,
+            "timestamp": timestamp,
+            "signature": signature
+        }
+        headers = {"X-API-KEY": API_KEY}
+        response = requests.post(f"{BASE_URL}/fapi/v3/order", json=payload, headers=headers)
+        print("下單參數：", symbol, side, quantity)
+        print("API 回應：", response.text)
 
-    return response.text, response.status_code
-except Exception as e:
-    print("❌ 下單錯誤：", str(e))
-    return str(e), 500
+        return response.text, response.status_code
+    except Exception as e:
+        print("❌ 下單錯誤：", str(e))
+        return str(e), 500
