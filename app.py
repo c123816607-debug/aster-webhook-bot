@@ -33,7 +33,8 @@ def set_leverage(symbol, leverage):
     headers = {"X-API-KEY": API_KEY}
     requests.post(f"{BASE_URL}/fapi/v3/leverage", params=payload, headers=headers)
 
-def place_order(symbol, side, quantity):
+def place_order(symbol, side, quantity)
+    try:
     timestamp = int(time.time() * 1000)
     query = f"symbol={symbol}&side={side}&type=MARKET&quantity={quantity}&timestamp={timestamp}"
     signature = hmac.new(API_SECRET.encode(), query.encode(), hashlib.sha256).hexdigest()
