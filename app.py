@@ -51,7 +51,6 @@ def place_order(symbol, side, quantity):
     print("API 回應：", response.text)
 
     return response.text, response.status_code
-    
-    except Exception as e:
+except Exception as e:
     print("❌ 下單錯誤：", str(e))
     return str(e), 500
