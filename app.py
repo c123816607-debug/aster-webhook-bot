@@ -52,6 +52,7 @@ def webhook():
             "timeInForce": time_in_force,
             "quantity": quantity,
             "timestamp": int(time.time() * 1000),
+            "nonce": str(int(time.time() * 1000)),
             "user": USER,
             "signer": SIGNER,
         }
