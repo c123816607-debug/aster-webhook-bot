@@ -28,11 +28,20 @@ def sign_payload(payload, ts):
 @app.route('/webhook', methods=['POST'])
 def webhook():
     try:
+        print("🧪 USER:", USER)
+        print("🧪 SIGNER:", SIGNER)
+        print("🧪 PRIVATE_KEY:", PRIVATE_KEY[:5] + "..." if PRIVATE_KEY else "None")
+
         if not USER or not SIGNER or not PRIVATE_KEY:
             raise ValueError("❌ USER / SIGNER / PRIVATE_KEY 未設定")
 
-        print("📩 收到 webhook")
-        data = request.get_json(force=True)
+        try:
+            data = request.get_json(force=True)
+        except Exception as e:
+            print("❌ JSON 解析失敗：", str(e))
+            return {'error': 'Invalid JSON'}, 400
+
+        print("🟢 webhook 進入")
         print("📦 webhook 內容：", data)
 
         symbol = data.get("symbol")
