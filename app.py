@@ -92,17 +92,24 @@ def webhook():
 
         # 準備下單參數（依 Aster 文件確認欄位名稱與格式）
         # 這裡示範合約下單常見參數：symbol, side, type, quantity, timeInForce, positionSide
-        payload = {
+        # 準備下單參數
+        # 準備下單參數
+        params = {
             "symbol": symbol,
             "side": side.upper(),
-            "type": type_.upper(),
-            "quantity": str(quantity),
-            # optional params
-            "timeInForce": data.get("timeInForce", "GTC"),
-            "positionSide": data.get("positionSide", "BOTH"),
-            "nonce": str(int(time.time() * 1000))  # ← 加這行
-            # 不在簽名裡加入 user/signer 除非官方要求
+            "type": order_type.upper(),
+            "timeInForce": time_in_force,
+            "quantity": quantity,
+            "timestamp": int(time.time() * 1000),
+            "user": USER,
+            "signer": SIGNER,
         }
+
+logger.info(f"🔑 USER={USER}, SIGNER={SIGNER}")  # 先看環境變數
+final_qs = build_signed_payload(params)
+logger.info(f"📤 發送參數: {final_qs}")  # 再看最後送的
+
+ 
 
         # 若想要在下單時帶 price (LIMIT)，則例外處理：
         if payload["type"] == "LIMIT":
