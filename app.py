@@ -27,8 +27,16 @@ def sign_payload(payload, ts):
 def webhook():
     try:
         print("📩 收到 webhook")
-        data = request.get_json()
+        data = request.get_json(force=True)
         print("📦 webhook 內容：", data)
+
+        required_fields = ["symbol", "side", "type", "quantity"]
+        for field in required_fields:
+            if field not in data:
+                raise ValueError(f"❌ 缺少欄位：{field}")
+
+        if not USER or not SIGNER or not PRIVATE_KEY:
+            raise ValueError("❌ USER / SIGNER / PRIVATE_KEY 未設定")
 
         ts = int(time.time() * 1000)
         print("🕒 timestamp：", ts)
@@ -66,6 +74,7 @@ def webhook():
     except Exception as e:
         print("❌ webhook 錯誤：", str(e))
         return {'error': str(e)}, 500
+
 
 # 🟢 啟動 Flask 伺服器
 if __name__ == '__main__':
