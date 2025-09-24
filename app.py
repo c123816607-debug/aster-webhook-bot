@@ -1,3 +1,10 @@
+print("🟢 app.py 開始執行")
+try:
+    import pkg_resources
+    print("✅ pkg_resources 成功載入")
+except Exception as e:
+    print("❌ pkg_resources 載入失敗：", str(e))
+
 from flask import Flask, request
 import time, requests, urllib.parse, json, os
 from dotenv import load_dotenv
