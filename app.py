@@ -31,6 +31,11 @@ def sign_payload(payload, ts):
     signed = Account.sign_message(signable_msg, private_key=PRIVATE_KEY)
     return '0x' + signed.signature.hex()
 
+# 🛠 ping 路由（防止 Railway 閒置）
+@app.route('/ping')
+def ping():
+    return "pong"
+
 # 📩 webhook 路由
 @app.route('/webhook', methods=['POST'])
 def webhook():
@@ -101,3 +106,4 @@ def webhook():
 if __name__ == '__main__':
     print("🚀 webhook bot 啟動成功，等待 TradingView 訊號…")
     app.run(host='0.0.0.0', port=8000)
+
