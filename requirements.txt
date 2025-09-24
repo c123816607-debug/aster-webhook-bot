@@ -1,3 +1,6 @@
-Flask>=2.0
-requests>=2.28
-python-dotenv>=0.21
+flask
+requests
+python-dotenv
+eth-abi
+web3
+eth-account
