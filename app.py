@@ -78,4 +78,6 @@ def webhook():
 # 啟動 Flask
 if __name__ == "__main__":
     logger.info("🚀 Webhook bot 啟動成功，等待 TradingView 訊號...")
-    app.run(host="0.0.0.0", port=8000)
+    port = int(os.environ.get("PORT", 8000))
+    app.run(host="0.0.0.0", port=port)
+
