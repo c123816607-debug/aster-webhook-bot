@@ -30,23 +30,26 @@ def webhook():
         data = request.get_json(force=True)
         print("📦 webhook 內容：", data)
 
-        required_fields = ["symbol", "side", "type", "quantity"]
-        for field in required_fields:
-            if field not in data:
-                raise ValueError(f"❌ 缺少欄位：{field}")
-
         if not USER or not SIGNER or not PRIVATE_KEY:
             raise ValueError("❌ USER / SIGNER / PRIVATE_KEY 未設定")
+
+        symbol = data.get("symbol")
+        side = data.get("side")
+        type_ = data.get("type")
+        quantity = data.get("quantity")
+
+        if not symbol or not side or not type_ or not quantity:
+            raise ValueError("❌ webhook JSON 缺少必要欄位")
 
         ts = int(time.time() * 1000)
         print("🕒 timestamp：", ts)
 
         payload = {
-            "symbol": data["symbol"],
-            "side": data["side"],
-            "type": data["type"],
+            "symbol": symbol,
+            "side": side,
+            "type": type_,
             "timeInForce": data.get("timeInForce", "GTC"),
-            "quantity": data["quantity"],
+            "quantity": quantity,
             "positionSide": data.get("positionSide", "BOTH"),
             "recvWindow": "50000",
             "timestamp": str(ts),
@@ -74,6 +77,7 @@ def webhook():
     except Exception as e:
         print("❌ webhook 錯誤：", str(e))
         return {'error': str(e)}, 500
+
 
 
 # 🟢 啟動 Flask 伺服器
