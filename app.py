@@ -57,6 +57,7 @@ def webhook():
             "signer": SIGNER,
         }
 
+        params = {k: str(v) for k, v in params.items()}
         # debug log
         logger.info(f"🔑 USER={USER}, SIGNER={SIGNER}")
         logger.info(f"📦 下單參數: {params}")
