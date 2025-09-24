@@ -7,17 +7,15 @@ from eth_account.messages import encode_defunct
 
 app = Flask(__name__)
 
-# ✅ 從環境變數讀取 API 資訊
-USER = os.getenv("ASTER_USER")         # 主帳戶地址
-SIGNER = os.getenv("ASTER_SIGNER")     # API 錢包地址
-PRIVATE_KEY = os.getenv("ASTER_PK")    # signer 的私鑰（hex格式）
+# ✅ 環境變數讀取
+USER = os.getenv("ASTER_USER")
+SIGNER = os.getenv("ASTER_SIGNER")
+PRIVATE_KEY = os.getenv("ASTER_PK")
 
 print("🔍 USER:", USER)
 print("🔍 SIGNER:", SIGNER)
 print("🔍 PRIVATE_KEY:", PRIVATE_KEY)
 
-
-# ✅ webhook 路由
 @app.route('/webhook', methods=['POST'])
 def webhook():
     try:
@@ -25,7 +23,16 @@ def webhook():
         data = request.get_json(force=True)
         print("📩 JSON 資料：", data)
 
-        # ✅ Step 1：處理參數
+        # ✅ Step 1：清洗參數
+        data = {k: v for k, v in data.items() if v is not None}
+        data['recvWindow'] = 50000
+        data['timestamp'] = int(time.time() * 1000)
+
+        # ✅ 強制將 side 轉成大寫
+        if 'side' in data:
+            data['side'] = data['side'].upper()
+
+        # ✅ 清洗 dict：將 list、dict 轉成 JSON 字串
         def _trim_dict(d):
             for key in d:
                 value = d[key]
@@ -40,11 +47,9 @@ def webhook():
                     d[key] = str(value)
             return d
 
-        data = {k: v for k, v in data.items() if v is not None}
-        data['recvWindow'] = 50000
-        data['timestamp'] = int(time.time() * 1000)
         _trim_dict(data)
 
+        # ✅ 排序後轉成 JSON 字串（準備簽名）
         json_str = json.dumps(data, sort_keys=True).replace(' ', '').replace('\'','\"')
         print("📦 排序後參數：", json_str)
 
@@ -75,15 +80,21 @@ def webhook():
 
         url = 'https://fapi.asterdex.com/fapi/v3/order'
         response = requests.post(url, data=data, headers=headers)
-        print("✅ Aster 回應：", response.status_code, response.text)
 
-        return {"status": "ok", "response": response.json()}, 200
+        # ✅ Step 5：錯誤防呆（避免 .json() 炸掉）
+        try:
+            result = response.json()
+        except Exception:
+            print("❌ 無法解析 JSON，回傳內容：", response.text)
+            result = {"raw": response.text}
+
+        print("✅ Aster 回應：", response.status_code, result)
+        return {"status": "ok", "response": result}, response.status_code
 
     except Exception as e:
         print("❌ webhook 錯誤：", str(e))
         print("❌ 錯誤追蹤：", traceback.format_exc())
         return {"error": "execution error"}, 400
-
-# ✅ 啟動 Flask
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+    app.run(host='0.0.0.0', port=8080)
+
