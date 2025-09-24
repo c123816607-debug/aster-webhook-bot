@@ -100,6 +100,8 @@ def webhook():
             # optional params
             "timeInForce": data.get("timeInForce", "GTC"),
             "positionSide": data.get("positionSide", "BOTH"),
+            "payload["nonce"] = str(int(time.time() * 1000))
+
             # 不在簽名裡加入 user/signer 除非官方要求
         }
 
