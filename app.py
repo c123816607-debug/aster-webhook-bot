@@ -28,9 +28,13 @@ def webhook():
         data['recvWindow'] = 50000
         data['timestamp'] = int(time.time() * 1000)
 
-        # ✅ 強制將 side 轉成大寫
+        # ✅ side 大寫
         if 'side' in data:
             data['side'] = data['side'].upper()
+
+        # ✅ symbol 去掉 .P 結尾
+        if 'symbol' in data and data['symbol'].endswith('.P'):
+            data['symbol'] = data['symbol'].replace('.P', '')
 
         # ✅ 清洗 dict：將 list、dict 轉成 JSON 字串
         def _trim_dict(d):
@@ -95,6 +99,7 @@ def webhook():
         print("❌ webhook 錯誤：", str(e))
         print("❌ 錯誤追蹤：", traceback.format_exc())
         return {"error": "execution error"}, 400
+
+# ✅ Flask 啟動
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
-
