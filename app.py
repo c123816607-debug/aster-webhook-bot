@@ -30,7 +30,8 @@ def webhook():
     try:
         print("🧪 USER:", USER)
         print("🧪 SIGNER:", SIGNER)
-        print("🧪 PRIVATE_KEY:", PRIVATE_KEY[:5] + "..." if PRIVATE_KEY else "None")
+        print("🧪 PRIVATE_KEY 長度：", len(PRIVATE_KEY) if PRIVATE_KEY else "None")
+        print("🧪 PRIVATE_KEY 是否 hex：", all(c in '0123456789abcdefABCDEF' for c in PRIVATE_KEY))
 
         if not USER or not SIGNER or not PRIVATE_KEY:
             raise ValueError("❌ USER / SIGNER / PRIVATE_KEY 未設定")
@@ -89,7 +90,7 @@ def webhook():
         print("❌ webhook 錯誤：", str(e))
         return {'error': str(e)}, 500
 
-# 🟢 啟動 Flask 伺服器
+# 🟢 啟動 Flask 伺服器（debug 模式）
 if __name__ == '__main__':
     print("🚀 webhook bot 啟動成功，等待 TradingView 訊號…")
-    app.run(host='0.0.0.0', port=8000)
+    app.run(host='0.0.0.0', port=8000, debug=True)
