@@ -90,7 +90,7 @@ def webhook():
         print("❌ webhook 錯誤：", str(e))
         return {'error': str(e)}, 500
 
-# 🟢 啟動 Flask 伺服器（debug 模式）
+# 🟢 Flask 啟動（部署模式）
 if __name__ == '__main__':
     print("🚀 webhook bot 啟動成功，等待 TradingView 訊號…")
-    app.run(host='0.0.0.0', port=8000, debug=True)
+    app.run(host='0.0.0.0', port=8000)
