@@ -1,9 +1,5 @@
 from flask import Flask, request
-import time
-import requests
-import urllib.parse
-import json
-import os
+import time, requests, urllib.parse, json, os
 from dotenv import load_dotenv
 from eth_account import Account
 from eth_account.messages import encode_defunct
@@ -32,9 +28,11 @@ def webhook():
     try:
         print("📩 收到 webhook")
         data = request.get_json()
-        ts = int(time.time() * 1000)
+        print("📦 webhook 內容：", data)
 
-        print("🔐 正在簽名")
+        ts = int(time.time() * 1000)
+        print("🕒 timestamp：", ts)
+
         payload = {
             "symbol": data["symbol"],
             "side": data["side"],
@@ -49,16 +47,19 @@ def webhook():
             "nonce": str(ts * 1000)
         }
 
+        print("🔐 正在簽名")
         payload["signature"] = sign_payload(payload, ts)
+
         encoded_payload = urllib.parse.urlencode(payload)
+        print("📦 encoded payload：", encoded_payload)
 
         headers = {
             'Content-Type': 'application/x-www-form-urlencoded'
         }
 
-        print("📦 發送到 Aster")
         url = 'https://fapi.asterdex.com/fapi/v3/order'
-        response = requests.post(url, data=encoded_payload, headers=headers)
+        print("🚀 發送到 Aster：", url)
+        response = requests.post(url, data=encoded_payload, headers=headers, timeout=5)
 
         print("✅ Aster 回應：", response.text)
         return {'status': 'ok'}
