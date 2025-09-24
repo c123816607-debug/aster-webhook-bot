@@ -63,11 +63,15 @@ def webhook():
 
         headers = {
             "X-MBX-APIKEY": ASTER_API_KEY,
-            "Content-Type": "application/x-www-form-urlencoded"
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json",
+            "User-Agent": "Mozilla/5.0"
         }
 
-        # 用 params 傳送（不是 data）
+        # 發送請求
         response = requests.post(ASTER_ORDER_URL, headers=headers, data=params)
+        logger.info(f"📥 狀態碼: {response.status_code}")
+        logger.info(f"📥 回應類型: {response.headers.get('Content-Type')}")
         logger.info(f"📥 回應: {response.text}")
 
         try:
