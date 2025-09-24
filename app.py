@@ -66,12 +66,11 @@ def build_signed_payload(params: dict) -> dict:
 def webhook():
     try:
         logging.info("🔔 收到 webhook 請求")
-        # 檢查關鍵環境變數
+
         if not ASTER_API_KEY or not ASTER_SECRET_KEY:
             logging.error("❌ 未設定 ASTER_API_KEY 或 ASTER_SECRET_KEY")
             return jsonify({"error": "Server misconfiguration: missing API keys"}), 500
 
-        # 解析 JSON
         try:
             data = request.get_json(force=True)
         except Exception as e:
@@ -80,59 +79,57 @@ def webhook():
 
         logging.info("📦 webhook JSON: %s", data)
 
-        # 必要欄位檢查（依你的需求可增減）
         symbol = data.get("symbol")
-        side = data.get("side")           # BUY / SELL
-        type_ = data.get("type") or data.get("orderType")  # MARKET / LIMIT
+        side = data.get("side")
+        type_ = data.get("type") or data.get("orderType")
         quantity = data.get("quantity")
+        time_in_force = data.get("timeInForce", "GTC")
+        position_side = data.get("positionSide", "BOTH")
+        user = data.get("user") or USER
+        signer = data.get("signer") or SIGNER
 
         if not all([symbol, side, type_, quantity]):
             logging.error("❌ 缺少必要欄位")
             return jsonify({"error": "Missing required fields"}), 400
 
-        # 準備下單參數（依 Aster 文件確認欄位名稱與格式）
-        # 這裡示範合約下單常見參數：symbol, side, type, quantity, timeInForce, positionSide
-        # 準備下單參數
-        # 準備下單參數
-        params = {
+        # 建立 payload
+        payload = {
             "symbol": symbol,
             "side": side.upper(),
-            "type": order_type.upper(),
+            "type": type_.upper(),
+            "quantity": str(quantity),
             "timeInForce": time_in_force,
-            "quantity": quantity,
-            "timestamp": int(time.time() * 1000),
-            "user": USER,
-            "signer": SIGNER,
+            "positionSide": position_side,
+            "nonce": str(int(time.time() * 1000)),
+            "timestamp": str(int(time.time() * 1000)),
+            "recvWindow": RECV_WINDOW
         }
 
-logger.info(f"🔑 USER={USER}, SIGNER={SIGNER}")  # 先看環境變數
-final_qs = build_signed_payload(params)
-logger.info(f"📤 發送參數: {final_qs}")  # 再看最後送的
+        if user:
+            payload["user"] = user
+        if signer:
+            payload["signer"] = signer
 
- 
+        logging.info(f"🔑 USER={user}, SIGNER={signer}")
+        logging.info("📤 最終 payload: %s", payload)
 
-        # 若想要在下單時帶 price (LIMIT)，則例外處理：
         if payload["type"] == "LIMIT":
             price = data.get("price")
             if not price:
                 return jsonify({"error": "LIMIT order requires price"}), 400
             payload["price"] = str(price)
 
-        # 建立簽名並產生最終 payload
-        signed_params, qs_before_signature = build_signed_payload(payload.copy())
-
-        # encoded body 要是 qs（含 signature），或者放到 url query string（視 API 要求）
-        final_qs = urllib.parse.urlencode(sorted([(k, signed_params[k]) for k in signed_params]))  # sorted for stability
+        signed_params, _ = build_signed_payload(payload.copy())
+        final_qs = urllib.parse.urlencode(sorted(signed_params.items()))
 
         headers = {
             "Content-Type": "application/x-www-form-urlencoded",
-            "X-MBX-APIKEY": ASTER_API_KEY  # 如果 Aster 用不同 header 改成對應名稱
+            "X-MBX-APIKEY": ASTER_API_KEY
         }
 
         logging.info("🔐 已建立簽名，TEST_MODE=%s", TEST_MODE)
 
         if TEST_MODE:
-            # 不實際下單，回傳要送出的內容供 debug
             logging.info("🧪 TEST MODE: 不會發送真實請求。Final QS: %s", final_qs)
             return jsonify({
                 "status": "test",
@@ -141,11 +138,9 @@ logger.info(f"📤 發送參數: {final_qs}")  # 再看最後送的
                 "headers": {"X-MBX-APIKEY": "REDACTED"},
             }), 200
 
-        # 實際發送下單請求
         resp = requests.post(ASTER_ORDER_URL, data=final_qs, headers=headers, timeout=10)
         logging.info("📨 發送到 %s，HTTP %s", ASTER_ORDER_URL, resp.status_code)
 
-        # 細緻檢查回應
         try:
             resp_json = resp.json()
         except ValueError:
@@ -153,7 +148,7 @@ logger.info(f"📤 發送參數: {final_qs}")  # 再看最後送的
             logging.error("❌ 非 JSON 回應: %s", resp_text)
             return jsonify({"error": "Non-JSON response", "text": resp_text}), resp.status_code
 
-        if resp.status_code != 200 and resp.status_code != 201:
+        if resp.status_code not in (200, 201):
             logging.error("❌ 下單失敗 HTTP %s: %s", resp.status_code, resp_json)
             return jsonify({"error": "order failed", "detail": resp_json}), resp.status_code
 
@@ -163,6 +158,7 @@ logger.info(f"📤 發送參數: {final_qs}")  # 再看最後送的
     except Exception as e:
         logging.exception("❌ webhook 處理例外")
         return jsonify({"error": str(e)}), 500
+
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
