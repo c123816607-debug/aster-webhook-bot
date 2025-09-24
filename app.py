@@ -13,6 +13,8 @@ load_dotenv()
 USER = os.getenv("USER")
 SIGNER = os.getenv("SIGNER")
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
+if PRIVATE_KEY and PRIVATE_KEY.startswith("0x"):
+    PRIVATE_KEY = PRIVATE_KEY[2:]
 
 # 🔐 簽名函式
 def sign_payload(payload, ts):
@@ -26,12 +28,12 @@ def sign_payload(payload, ts):
 @app.route('/webhook', methods=['POST'])
 def webhook():
     try:
+        if not USER or not SIGNER or not PRIVATE_KEY:
+            raise ValueError("❌ USER / SIGNER / PRIVATE_KEY 未設定")
+
         print("📩 收到 webhook")
         data = request.get_json(force=True)
         print("📦 webhook 內容：", data)
-
-        if not USER or not SIGNER or not PRIVATE_KEY:
-            raise ValueError("❌ USER / SIGNER / PRIVATE_KEY 未設定")
 
         symbol = data.get("symbol")
         side = data.get("side")
@@ -77,8 +79,6 @@ def webhook():
     except Exception as e:
         print("❌ webhook 錯誤：", str(e))
         return {'error': str(e)}, 500
-
-
 
 # 🟢 啟動 Flask 伺服器
 if __name__ == '__main__':
