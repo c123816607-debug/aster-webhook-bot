@@ -52,7 +52,7 @@ def webhook():
             "timeInForce": time_in_force,
             "quantity": quantity,
             "timestamp": int(time.time() * 1000),
-            "nonce": str(int(time.time() * 1000)),
+            "nonce": int(time.time() * 1_000_000),  # ✅ 修正這行,
             "user": USER,
             "signer": SIGNER,
         }
