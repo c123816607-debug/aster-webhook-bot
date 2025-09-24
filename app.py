@@ -12,6 +12,11 @@ USER = os.getenv("ASTER_USER")         # 主帳戶地址
 SIGNER = os.getenv("ASTER_SIGNER")     # API 錢包地址
 PRIVATE_KEY = os.getenv("ASTER_PK")    # signer 的私鑰（hex格式）
 
+print("🔍 USER:", USER)
+print("🔍 SIGNER:", SIGNER)
+print("🔍 PRIVATE_KEY:", PRIVATE_KEY)
+
+
 # ✅ webhook 路由
 @app.route('/webhook', methods=['POST'])
 def webhook():
