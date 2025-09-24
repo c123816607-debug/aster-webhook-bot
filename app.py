@@ -67,7 +67,7 @@ def webhook():
         }
 
         # 用 params 傳送（不是 data）
-        response = requests.post(ASTER_ORDER_URL, headers=headers, date=params)
+        response = requests.post(ASTER_ORDER_URL, headers=headers, data=params)
         logger.info(f"📥 回應: {response.text}")
 
         try:
