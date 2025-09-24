@@ -1,109 +1,105 @@
 print("🟢 app.py 開始執行")
-try:
-    import pkg_resources
-    print("✅ pkg_resources 成功載入")
-except Exception as e:
-    print("❌ pkg_resources 載入失敗：", str(e))
 
 from flask import Flask, request
-import time, requests, urllib.parse, json, os
+import time, math, json, requests, os
 from dotenv import load_dotenv
 from eth_account import Account
 from eth_account.messages import encode_defunct
+from eth_abi import encode
 from web3 import Web3
 
-# 🚀 啟動 Flask
 app = Flask(__name__)
 load_dotenv()
 
-# 📦 載入環境變數
 USER = os.getenv("USER")
 SIGNER = os.getenv("SIGNER")
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
-if PRIVATE_KEY and PRIVATE_KEY.startswith("0x"):
-    PRIVATE_KEY = PRIVATE_KEY[2:]
 
-# 🔐 簽名函式
-def sign_payload(payload, ts):
+# ✅ Aster 要求完整 hex 格式 → 不要去掉 0x
+if not PRIVATE_KEY.startswith("0x"):
+    PRIVATE_KEY = "0x" + PRIVATE_KEY
+
+def _trim_dict(d):
+    for key in d:
+        value = d[key]
+        if isinstance(value, list):
+            new_value = []
+            for item in value:
+                new_value.append(json.dumps(_trim_dict(item)) if isinstance(item, dict) else str(item))
+            d[key] = json.dumps(new_value)
+        elif isinstance(value, dict):
+            d[key] = json.dumps(_trim_dict(value))
+        else:
+            d[key] = str(value)
+    return d
+
+def sign_payload(payload, nonce):
+    _trim_dict(payload)
     json_str = json.dumps(payload, sort_keys=True).replace(' ', '').replace('\'','\"')
-    encoded = Web3.solidity_keccak(['string', 'address', 'address', 'uint256'], [json_str, USER, SIGNER, ts])
-    signable_msg = encode_defunct(hexstr=encoded.hex())
+    print("🔐 json_str:", json_str)
+
+    encoded = encode(['string', 'address', 'address', 'uint256'], [json_str, USER, SIGNER, nonce])
+    keccak_hex = Web3.keccak(encoded).hex()
+    print("🔐 keccak:", keccak_hex)
+
+    signable_msg = encode_defunct(hexstr=keccak_hex)
     signed = Account.sign_message(signable_msg, private_key=PRIVATE_KEY)
     return '0x' + signed.signature.hex()
 
-# 🛠 ping 路由（防止 Railway 閒置）
 @app.route('/ping')
 def ping():
     return "pong"
 
-# 📩 webhook 路由
 @app.route('/webhook', methods=['POST'])
 def webhook():
     try:
-        print("🧪 USER:", USER)
-        print("🧪 SIGNER:", SIGNER)
-        print("🧪 PRIVATE_KEY 長度：", len(PRIVATE_KEY) if PRIVATE_KEY else "None")
-        print("🧪 PRIVATE_KEY 是否 hex：", all(c in '0123456789abcdefABCDEF' for c in PRIVATE_KEY))
-
-        if not USER or not SIGNER or not PRIVATE_KEY:
-            raise ValueError("❌ USER / SIGNER / PRIVATE_KEY 未設定")
-
-        try:
-            data = request.get_json(force=True)
-        except Exception as e:
-            print("❌ JSON 解析失敗：", str(e))
-            return {'error': 'Invalid JSON'}, 400
-
         print("🟢 webhook 進入")
+        data = request.get_json(force=True)
         print("📦 webhook 內容：", data)
 
-        symbol = data.get("symbol")
-        side = data.get("side")
-        type_ = data.get("type")
-        quantity = data.get("quantity")
-
-        if not symbol or not side or not type_ or not quantity:
-            raise ValueError("❌ webhook JSON 缺少必要欄位")
-
         ts = int(time.time() * 1000)
-        print("🕒 timestamp：", ts)
+        nonce = math.trunc(time.time() * 1_000_000)
 
         payload = {
-            "symbol": symbol,
-            "side": side,
-            "type": type_,
-            "timeInForce": data.get("timeInForce", "GTC"),
-            "quantity": quantity,
-            "positionSide": data.get("positionSide", "BOTH"),
+            "symbol": str(data.get("symbol")),
+            "side": str(data.get("side")),
+            "type": str(data.get("type")),
+            "quantity": str(data.get("quantity")),
+            "price": str(data.get("price")),
+            "timeInForce": str(data.get("timeInForce", "GTC")),
+            "positionSide": str(data.get("positionSide", "BOTH")),
             "recvWindow": "50000",
-            "timestamp": str(ts),
-            "user": USER,
-            "signer": SIGNER,
-            "nonce": str(ts * 1000)
+            "timestamp": str(ts)
         }
 
-        print("🔐 正在簽名")
-        payload["signature"] = sign_payload(payload, ts)
+        signature = sign_payload(payload, nonce)
 
-        encoded_payload = urllib.parse.urlencode(payload)
-        print("📦 encoded payload：", encoded_payload)
-
-        headers = {
-            'Content-Type': 'application/x-www-form-urlencoded'
-        }
+        payload["nonce"] = str(nonce)
+        payload["user"] = USER
+        payload["signer"] = SIGNER
+        payload["signature"] = signature
 
         url = 'https://fapi.asterdex.com/fapi/v3/order'
-        print("🚀 發送到 Aster：", url)
-        response = requests.post(url, data=encoded_payload, headers=headers, timeout=5)
+        headers = {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent': 'PythonApp/1.0'
+        }
 
-        print("✅ Aster 回應：", response.text)
-        return {'status': 'ok'}
+        print("🚀 發送到 Aster：", url)
+        print("📦 payload：", payload)
+
+        try:
+            res = requests.post(url, data=payload, headers=headers, timeout=5)
+            print("✅ Aster 回應：", res.text)
+            return {'status': 'ok', 'response': res.text}
+        except Exception as e:
+            print("❌ POST 失敗：", str(e))
+            return {'error': 'Aster unreachable'}, 502
+
     except Exception as e:
         print("❌ webhook 錯誤：", str(e))
         return {'error': str(e)}, 500
 
-# 🟢 Flask 啟動（部署模式）
 if __name__ == '__main__':
     print("🚀 webhook bot 啟動成功，等待 TradingView 訊號…")
     app.run(host='0.0.0.0', port=8000)
-
